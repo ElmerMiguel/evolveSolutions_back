@@ -1,7 +1,7 @@
 import crypto from "crypto";
-import users from "../models/users";
-import sessions from "../models/sessions";
-import generarAuthToken from "../middlewares/generarAuthToken";
+import sessions from "../models/sessions.js";
+import generarAuthToken from "../middlewares/generarAuthToken.js";
+import users from "../models/users.js";
 
 
 const login = async (req, res) => {
