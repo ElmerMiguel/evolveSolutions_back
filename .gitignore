@@ -1,1 +1,6 @@
 d_local/
+node_modules/
+.env
+dist/
+package-lock.json
+*.log
