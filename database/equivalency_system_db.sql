@@ -6,6 +6,31 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Limpieza de tablas (Orden inverso para evitar errores de FK)
+DROP TABLE IF EXISTS request_statistics CASCADE;
+DROP TABLE IF EXISTS user_activity_log CASCADE;
+DROP TABLE IF EXISTS equivalence_request_status_history CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS document_requirements CASCADE;
+DROP TABLE IF EXISTS documents CASCADE;
+DROP TABLE IF EXISTS equivalence_request_courses CASCADE;
+DROP TABLE IF EXISTS equivalence_requests CASCADE;
+DROP TABLE IF EXISTS course_programs CASCADE;
+DROP TABLE IF EXISTS teacher_courses CASCADE;
+DROP TABLE IF EXISTS teacher_profiles CASCADE;
+DROP TABLE IF EXISTS student_profiles CASCADE;
+DROP TABLE IF EXISTS study_plan_courses CASCADE;
+DROP TABLE IF EXISTS courses CASCADE;
+DROP TABLE IF EXISTS study_plans CASCADE;
+DROP TABLE IF EXISTS careers CASCADE;
+DROP TABLE IF EXISTS error_logs CASCADE;
+DROP TABLE IF EXISTS sessions CASCADE;
+DROP TABLE IF EXISTS user_roles CASCADE;
+DROP TABLE IF EXISTS role_permissions CASCADE;
+DROP TABLE IF EXISTS permissions CASCADE;
+DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
 -- ============================================================================
 -- HU-14: MANEJO DE TOKEN - TABLA USERS CON SEGURIDAD
 -- ============================================================================
