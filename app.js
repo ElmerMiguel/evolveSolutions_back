@@ -35,7 +35,7 @@ app.use(cors({
 
 
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || 'evolvesolutions_fallback_secret_12345',
     resave: false,
     saveUninitialized: true,
     cookie: {
