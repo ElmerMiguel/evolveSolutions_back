@@ -1,4 +1,16 @@
-/.env
-/node_modules/
-/.idea/
-/evolveSolutions_back.iml
+# Env
+.env
+
+# Dependencias
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Builds
+dist/
+build/
