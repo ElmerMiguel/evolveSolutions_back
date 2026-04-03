@@ -649,7 +649,57 @@ CREATE TABLE request_statistics (
 
 CREATE INDEX idx_request_statistics_request ON request_statistics(equivalence_request_id);
 
+-- ============================================================================
+-- TABLA: RELACIÓN ESTUDIANTES-CURSOS (Para registrar cursos cursados y calificaciones)
+-- ============================================================================
+create table student_course
+(
+    id                  uuid default gen_random_uuid() not null
+        constraint student_course_pk
+            primary key,
+    student_uuid        uuid                           not null,
+    course_program_uuid uuid,
+    grade               numeric(12, 2)
+);
 
+-- ============================================================================
+-- TABLA: ESTADO DE SOLICITUD DE EQUIVALENCIA (Para normalizar estados y facilitar consultas)
+-- ============================================================================
+create table status
+(
+    id   uuid default gen_random_uuid() not null
+        constraint status_pk
+            primary key,
+    name varchar(32)                    not null
+);
+
+----------------------------------------------------------------------------
+-- ALTERACIONES PARA NORMALIZAR ESTADOS DE SOLICITUD DE EQUIVALENCIA
+----------------------------------------------------------------------------
+
+alter table equivalence_requests
+    rename column status to status_id;
+
+alter table equivalence_requests
+    alter column status_id drop default;
+
+alter table equivalence_requests
+alter column status_id type uuid using status_id::uuid;
+
+alter table equivalence_request_courses
+    rename column status to status_id;
+
+alter table equivalence_request_courses
+    alter column status_id drop default;
+
+alter table equivalence_request_courses
+alter column status_id type uuid using status_id::uuid;
+
+alter table equivalence_request_status_history
+alter column from_status type uuid using from_status::uuid;
+
+alter table equivalence_request_status_history
+alter column to_status type uuid using to_status::uuid;
 
 -- ============================================================================
 -- COMENTARIOS DE DOCUMENTACIÓN
