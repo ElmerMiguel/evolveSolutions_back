@@ -6,6 +6,11 @@ const tokenBlacklist = new NodeCache({ stdTTL: 86400, checkperiod: 120 });
 const autenticacionToken = (req, res, next) => {
     const token = req.cookies.authToken; //
 
+
+    if (req.originalUrl.includes("/programas/upload")) {
+        return next();
+    }
+
     if (!token) {
         return res.status(401).json({ message: 'Acceso denegado. Token no encontrado.' });
     }

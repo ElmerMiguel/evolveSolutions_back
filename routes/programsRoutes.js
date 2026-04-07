@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { getPrograms, uploadProgramsView, uploadProgram } from "../controllers/programsController.js";
+// import { getPrograms, uploadProgramsView, uploadProgram } from "../controllers/programsController.js";
+import { getPrograms, uploadProgram } from "../controllers/programsController.js";
 import upload from "../middlewares/fileUploadMiddleware.js";
 
 const router = Router();

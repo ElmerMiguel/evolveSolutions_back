@@ -11,10 +11,11 @@ export const getPrograms = async (req, res) => {};
 // POST /programa
 export const uploadProgram = async (req, res) => {
   const transaction = await sequelize.transaction();
+  const teacher_course_id = uuidv4();
 
   try {
     const file = req.file;
-    const { teacher_course_id } = req.body;
+    // const { teacher_course_id } = req.body;
 
     if (!file) {
       return res.status(400).json({ message: "No file uploaded" });
