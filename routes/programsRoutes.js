@@ -10,6 +10,6 @@ const router = Router();
 router.get("/", getPrograms);
 router.get("/teacher-courses", autenticacionToken, getTeacherCourses);
 // router.post("/", uploadProgramsView);
-router.post("/upload", upload.single('file'), uploadProgram); 
+router.post("/upload", autenticacionToken, upload.single('file'), uploadProgram); 
 
 export default router;

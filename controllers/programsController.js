@@ -11,9 +11,6 @@ export const getPrograms = async (req, res) => {};
 // GET /teacher-courses
 export const getTeacherCourses = async (req, res) => {
 
-  console.log("COOKIES:", req.cookies);
-  console.log("USER:", req.user);
-  console.log("------------------");
   try {
     const userId = req.user.id;
 
@@ -43,19 +40,16 @@ export const getTeacherCourses = async (req, res) => {
 };
 
 
-
-
 // POST /programa
 export const uploadProgram = async (req, res) => {
   const transaction = await sequelize.transaction();
-  const teacher_course_id = uuidv4();
 
   try {
     const file = req.file;
-    // const { teacher_course_id } = req.body;
+    const { teacher_course_id } = req.body;
 
     if (!file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ message: "No subió ningún archivo" });
     }
 
     if (!teacher_course_id) {
@@ -85,20 +79,28 @@ export const uploadProgram = async (req, res) => {
     });
 
     // Guardar en BD
-    const program = await sequelize.query(
+    const [program] = await sequelize.query(
       `
-        INSERT INTO course_programs (
-          id,
-          teacher_course_id,
-          document_url,
-          document_key,
-          file_size,
-          mime_type,
-          uploaded_by
-        )
-        VALUES (:id, :teacher_course_id, :url, :key, :size, :mime, :user)
-        RETURNING *
-        `,
+      INSERT INTO course_programs (
+        id,
+        teacher_course_id,
+        document_url,
+        document_key,
+        file_size,
+        mime_type,
+        uploaded_by
+      )
+      VALUES (
+        :id,
+        :teacher_course_id,
+        :url,
+        :key,
+        :size,
+        :mime,
+        :user
+      )
+      RETURNING *
+      `,
       {
         replacements: {
           id: uuidv4(),
@@ -107,7 +109,7 @@ export const uploadProgram = async (req, res) => {
           key: result.public_id,
           size: file.size,
           mime: file.mimetype,
-          user: req.user?.id || null,
+          user: req.user.id,
         },
         type: sequelize.QueryTypes.INSERT,
         transaction,
@@ -116,16 +118,17 @@ export const uploadProgram = async (req, res) => {
 
     await transaction.commit();
 
-    res.json({
-      message: "Programa subido correctamente",
+    return res.json({
+      message: "Programa subido y guardado correctamente",
       data: program,
     });
+
   } catch (error) {
     await transaction.rollback();
     console.error(error);
 
-    res.status(500).json({
-      message: "Error en la subida de archivos",
+    return res.status(500).json({
+      message: "Error al guardar programa",
     });
   }
 };
