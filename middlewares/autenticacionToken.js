@@ -6,11 +6,6 @@ const tokenBlacklist = new NodeCache({ stdTTL: 86400, checkperiod: 120 });
 const autenticacionToken = (req, res, next) => {
     const token = req.cookies.authToken; //
 
-
-    if (req.originalUrl.includes("/programas/upload")) {
-        return next();
-    }
-
     if (!token) {
         return res.status(401).json({ message: 'Acceso denegado. Token no encontrado.' });
     }
@@ -21,7 +16,13 @@ const autenticacionToken = (req, res, next) => {
     }
 
     try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        req.user = {
+        ...decoded,
+        id: decoded.id || decoded.UsuarioID
+        };
+
         next();
     } catch (err) {
         res.status(403).json({ message: 'Token invalido.' });
