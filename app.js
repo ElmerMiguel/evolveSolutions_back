@@ -29,8 +29,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(path.dirname(''), 'public')));
 app.use(cookieParser());
 app.use(cors({
-    origin: true,
-    credentials: true
+  origin: "evolvesolutionsback-production.up.railway.app",
 }));
 
 
