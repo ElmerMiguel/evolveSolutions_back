@@ -80,7 +80,15 @@ export const login = async (req, res) => {
             sessionObj = activeSession;
         }
 
-        return res.json({ token, session: sessionObj, permisos });
+        res.cookie("authToken", token, {
+            httpOnly: true,
+            secure: false,
+            sameSite: "lax",
+            maxAge: 24 * 60 * 60 * 1000,
+        });
+
+        const roles = userRoles.map(r => r.code);
+        return res.json({ token, session: sessionObj, permisos, role : roles });
     } catch (err) {
         console.error("ERROR EN LOGIN:", err);
         return res.status(401).json({

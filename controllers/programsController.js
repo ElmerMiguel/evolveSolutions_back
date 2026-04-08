@@ -8,6 +8,43 @@ export const getPrograms = async (req, res) => {};
 // Get Vista /programa
 // export const uploadProgramsView = async (req, res) => {};
 
+// GET /teacher-courses
+export const getTeacherCourses = async (req, res) => {
+
+  console.log("COOKIES:", req.cookies);
+  console.log("USER:", req.user);
+  console.log("------------------");
+  try {
+    const userId = req.user.id;
+
+    const [rows] = await sequelize.query(`
+      SELECT 
+        tc.id,
+        c.code,
+        c.name,
+        c.description,
+        c.credits,
+        tc.year_teaching,
+        tc.semester
+      FROM teacher_courses tc
+      JOIN teacher_profiles tp ON tc.teacher_id = tp.id
+      JOIN courses c ON tc.course_id = c.id
+      WHERE tp.user_id = :userId
+      ORDER BY c.name
+    `, {
+      replacements: { userId }
+    });
+
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al obtener cursos del docente" });
+  }
+};
+
+
+
+
 // POST /programa
 export const uploadProgram = async (req, res) => {
   const transaction = await sequelize.transaction();
