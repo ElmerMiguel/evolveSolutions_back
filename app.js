@@ -8,6 +8,9 @@ import cors from 'cors';
 import sequelize from "./config/db.js";
 import router from "./routes/index.js";
 
+import dotenv from "dotenv";
+dotenv.config();
+
 const app = express();
 
 app.use(logger('dev'));
