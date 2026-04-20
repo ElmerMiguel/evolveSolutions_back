@@ -24,6 +24,7 @@ export const createSolicitud = async (req, res) => {
             cursoEquivalencia,
             codigoCursoEquivalencia,
             observaciones,
+            docente,
         } = req.body;
 
         if (!carnet || !codigoCursoAprobado || !codigoCursoEquivalencia) {
@@ -35,6 +36,19 @@ export const createSolicitud = async (req, res) => {
         const t = await sequelize.transaction();
 
         try {
+            const [teacherRows] = await sequelize.query(
+                `SELECT tp.id 
+                 FROM teacher_profiles tp
+                 JOIN users u ON tp.user_id = u.id
+                 WHERE concat(u.first_name, ' ', u.last_name) ILIKE :docente
+                 LIMIT 1`,
+                { replacements: { docente: `%${docente}%` }, transaction: t }
+            );
+
+            const assignedTeacherId = teacherRows.length
+                ? teacherRows[0].id
+                : null;
+
             const [students] = await sequelize.query(
                 `SELECT id FROM student_profiles WHERE student_code = :carnet LIMIT 1`,
                 { replacements: { carnet }, transaction: t }
@@ -125,9 +139,9 @@ export const createSolicitud = async (req, res) => {
             const newRequestId = uuidv4();
             await sequelize.query(
                 `INSERT INTO equivalence_requests
-                    (id, student_id, origin_study_plan_id, destination_study_plan_id, status_id, observations)
+                    (id, student_id, origin_study_plan_id, destination_study_plan_id, status_id, observations, assigned_teacher_id)
                  VALUES
-                    (:id, :student_id, :origin_sp, :dest_sp, :status_id, :observations)`,
+                    (:id, :student_id, :origin_sp, :dest_sp, :status_id, :observations, :teacher_id)`,
                 {
                     replacements: {
                         id: newRequestId,
@@ -136,6 +150,7 @@ export const createSolicitud = async (req, res) => {
                         dest_sp: destination_study_plan_id,
                         status_id,
                         observations: observaciones || null,
+                        teacher_id: assignedTeacherId,
                     },
                     transaction: t,
                 }
@@ -173,6 +188,7 @@ export const createSolicitud = async (req, res) => {
                     destination_study_plan_id,
                     origin_course_id: originCourse.id,
                     destination_course_id: destCourse.id,
+                    assigned_teacher_id: assignedTeacherId,
                 },
             });
         } catch (innerError) {
