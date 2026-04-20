@@ -17,10 +17,17 @@ vi.mock("../../middlewares/generarAuthToken", () => ({
     default: vi.fn(),
 }));
 
-import login from "../../controllers/authController.js";
+vi.mock("../../config/db", () => ({
+    default: {
+        query: vi.fn(),
+    },
+}));
+
+import { login } from "../../controllers/authController.js";
 import users from "../../models/users";
 import sessions from "../../models/sessions";
 import generarAuthToken from "../../middlewares/generarAuthToken";
+import sequelize from "../../config/db";
 
 function makeRes() {
     return {
@@ -32,6 +39,7 @@ function makeRes() {
             this.body = payload;
             return this;
         }),
+        cookie: vi.fn(function () { return this; }),
         statusCode: 200,
         body: undefined,
     };
@@ -54,6 +62,10 @@ describe("authController.js login", () => {
         sessions.checkActive.mockResolvedValue(false);
         generarAuthToken.mockReturnValue(token);
 
+        // Mock two sequential queries: permissions and roles
+        sequelize.query.mockResolvedValueOnce([[]]);
+        sequelize.query.mockResolvedValueOnce([[]]);
+
         sessions.createWithToken.mockResolvedValue(newSession);
 
         await login(req, res);
@@ -67,7 +79,7 @@ describe("authController.js login", () => {
         });
 
         expect(res.status).not.toHaveBeenCalled();
-        expect(res.json).toHaveBeenCalledWith({ token, session: newSession });
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ token, session: newSession }));
     });
 
     it("retorna la sesión y un nuevo token, cuando ya existe una sesión activa", async () => {
@@ -82,6 +94,9 @@ describe("authController.js login", () => {
         sessions.checkActive.mockResolvedValue(activeSession);
         generarAuthToken.mockReturnValue(token);
 
+        sequelize.query.mockResolvedValueOnce([[]]);
+        sequelize.query.mockResolvedValueOnce([[]]);
+
         await login(req, res);
 
         expect(users.login).toHaveBeenCalledTimes(1);
@@ -90,10 +105,10 @@ describe("authController.js login", () => {
 
         expect(sessions.createWithToken).not.toHaveBeenCalled();
 
-        expect(res.json).toHaveBeenCalledWith({
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             token,
             session: activeSession,
-        });
+        }));
     });
 
     it("retorna 401 cuando el login falla", async () => {
