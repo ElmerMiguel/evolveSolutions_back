@@ -5,7 +5,18 @@ import { v4 as uuidv4 } from "uuid";
 export const getCursosAsignacion = async (req, res) => {
     try {
         const [rows] = await sequelize.query(`
-            SELECT * FROM sp_cursos_getcursosasignados()
+            SELECT
+                CONCAT(u.first_name, ' ', u.last_name) AS nombreEstudiante,
+                sp.student_code AS carnet,
+                c.code AS codigoCurso,
+                c.name AS nombreCurso,
+                st.grade AS nota
+            FROM student_course st
+                     INNER JOIN course_programs cp ON st.course_program_uuid = cp.id
+                     INNER JOIN teacher_courses tc ON cp.teacher_course_id = tc.id
+                     INNER JOIN courses c ON tc.course_id = c.id
+                     INNER JOIN student_profiles sp ON st.student_uuid = sp.id
+                     INNER JOIN users u ON sp.user_id = u.id
         `);
         return res.json(rows);
     } catch (error) {

@@ -164,7 +164,34 @@ export const getOneSolicitud = async (req, res) => {
         if (!id) return res.status(400).json({ error: "ID es requerido" });
 
         const [rows] = await sequelize.query(
-            `SELECT * FROM sp_equivalencias_getSolicitudById(:id)`,
+            `
+                SELECT
+                    s.name AS estado,
+                    CONCAT(u.first_name, ' ', u.last_name) AS nombre,
+                    sp.student_code AS carnet,
+                    se.name AS carrera,
+                    c.name AS cursoAprobado,
+                    c.code AS codigoCursoAprobado,
+                    d.name AS cursoEquivalencia,
+                    d.code AS codigoCursoEquivalencia,
+                    COUNT(ds.id) AS cantidadArchivos,
+                    er.id AS id,
+                    er.submission_date AS fechaSolicitud,
+                    er.observations AS observaciones
+                FROM equivalence_requests er
+                         INNER JOIN student_profiles sp ON er.student_id = sp.id
+                         INNER JOIN users u ON sp.user_id = u.id
+                         INNER JOIN study_plans se ON se.id = er.destination_study_plan_id
+                         INNER JOIN equivalence_request_courses ec ON ec.equivalence_request_id = er.id
+                         INNER JOIN courses c ON ec.origin_course_id = c.id
+                         INNER JOIN courses d ON ec.destination_course_id = d.id
+                         INNER JOIN status s ON er.status_id = s.id
+                         LEFT JOIN documents ds ON ds.equivalence_request_id = er.id
+                WHERE er.id = :id
+                GROUP BY s.name, u.first_name, u.last_name, sp.student_code,
+                         se.name, c.name, c.code, d.name, d.code,
+                         er.id, er.submission_date, er.observations
+            `,
             { replacements: { id } }
         );
 
@@ -185,7 +212,18 @@ export const getDocumentosSolicitud = async (req, res) => {
         if (!id) return res.status(400).json({ error: "ID es requerido" });
 
         const [documents] = await sequelize.query(
-            `SELECT * FROM sp_equivalencias_getDocumentosBySolicitud(:id)`,
+            `SELECT
+                 ds.id,
+                 COALESCE(dr.name, ds.document_type) AS tipoDocumentoLabel,
+                 ds.document_name AS nombre,
+                 ds.mime_type AS tipo,
+                 ds.file_size AS tamanio,
+                 ds.upload_date AS fechaCarga,
+                 ds.validation_status AS estado
+             FROM documents ds
+                      LEFT JOIN document_requirements dr ON dr.code = ds.document_type
+             WHERE ds.equivalence_request_id = :id
+             ORDER BY ds.upload_date DESC, ds.document_name;`,
             { replacements: { id } }
         );
 

@@ -5,8 +5,19 @@ import { v4 as uuidv4 } from "uuid";
 export const getCursosDocenteAsignacion = async (req, res) => {
     try {
         const [rows] = await sequelize.query(`
-            SELECT * FROM sp_cursos_getcursosdocente()
-        `);
+            SELECT
+                concat(u.first_name, ' ', u.last_name) AS nombreProfesor,
+                c.code as codigoCurso,
+                c.name as nombreCurso,
+                sp.name as carrera,
+                tc.semester as semestre,
+                tc.section as seccion
+            FROM teacher_courses tc
+                     INNER JOIN courses c on tc.course_id = c.id
+                     INNER JOIN study_plans sp on tc.study_plan_id = sp.id
+                     INNER JOIN teacher_profiles tp on tc.teacher_id = tp.id
+                     INNER JOIN users u on tp.user_id = u.id;
+`);
         return res.json(rows);
     } catch (error) {
         console.error("Error in getCursosDocenteAsignacion:", error);
