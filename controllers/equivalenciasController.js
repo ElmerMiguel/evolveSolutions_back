@@ -1,7 +1,6 @@
 import sequelize from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 
-
 export const getAllSolicitudes = async (req, res) => {
     try {
         const [solicitudes] = await sequelize.query(
@@ -12,7 +11,7 @@ export const getAllSolicitudes = async (req, res) => {
         console.error("Error in getAllSolicitudes:", error);
         return res.status(500).json({ error: "Error al obtener solicitudes" });
     }
-}
+};
 
 export const createSolicitud = async (req, res) => {
     try {
@@ -24,11 +23,13 @@ export const createSolicitud = async (req, res) => {
             codigoCursoAprobado,
             cursoEquivalencia,
             codigoCursoEquivalencia,
-            observaciones
+            observaciones,
         } = req.body;
 
         if (!carnet || !codigoCursoAprobado || !codigoCursoEquivalencia) {
-            return res.status(400).json({ error: "carnet, codigoCursoAprobado y codigoCursoEquivalencia son obligatorios" });
+            return res.status(400).json({
+                error: "carnet, codigoCursoAprobado y codigoCursoEquivalencia son obligatorios",
+            });
         }
 
         const t = await sequelize.transaction();
@@ -40,17 +41,24 @@ export const createSolicitud = async (req, res) => {
             );
             if (!students.length) {
                 await t.rollback();
-                return res.status(404).json({ error: "No se encontró el estudiante (crear perfil de estudiante primero)" });
+                return res.status(404).json({
+                    error: "No se encontró el estudiante (crear perfil de estudiante primero)",
+                });
             }
             const student_id = students[0].id;
 
             const [careers] = await sequelize.query(
                 `SELECT id FROM careers WHERE name ILIKE :career LIMIT 1`,
-                { replacements: { career: `%${carrera || ''}%` }, transaction: t }
+                {
+                    replacements: { career: `%${carrera || ""}%` },
+                    transaction: t,
+                }
             );
             if (!careers.length) {
                 await t.rollback();
-                return res.status(404).json({ error: "No se encontró la carrera indicada" });
+                return res
+                    .status(404)
+                    .json({ error: "No se encontró la carrera indicada" });
             }
             const career_id = careers[0].id;
 
@@ -60,7 +68,9 @@ export const createSolicitud = async (req, res) => {
             );
             if (!plans.length) {
                 await t.rollback();
-                return res.status(404).json({ error: "No existe un plan de estudio activo para esa carrera" });
+                return res.status(404).json({
+                    error: "No existe un plan de estudio activo para esa carrera",
+                });
             }
             const destination_study_plan_id = plans[0].id;
 
@@ -71,17 +81,32 @@ export const createSolicitud = async (req, res) => {
                     `SELECT id, credits FROM courses WHERE code = :code LIMIT 1`,
                     { replacements: { code }, transaction: t }
                 );
-                if (rows.length) return { id: rows[0].id, credits: rows[0].credits || 3 };
+                if (rows.length)
+                    return { id: rows[0].id, credits: rows[0].credits || 3 };
                 const newId = uuidv4();
                 await sequelize.query(
                     `INSERT INTO courses (id, code, name, credits, hours_theory, hours_practice, enabled) VALUES (:id, :code, :name, :credits, 0, 0, true)`,
-                    { replacements: { id: newId, code, name: name || code, credits: 3 }, transaction: t }
+                    {
+                        replacements: {
+                            id: newId,
+                            code,
+                            name: name || code,
+                            credits: 3,
+                        },
+                        transaction: t,
+                    }
                 );
                 return { id: newId, credits: 3 };
             };
 
-            const originCourse = await findOrCreateCourse(codigoCursoAprobado, cursoAprobado);
-            const destCourse = await findOrCreateCourse(codigoCursoEquivalencia, cursoEquivalencia);
+            const originCourse = await findOrCreateCourse(
+                codigoCursoAprobado,
+                cursoAprobado
+            );
+            const destCourse = await findOrCreateCourse(
+                codigoCursoEquivalencia,
+                cursoEquivalencia
+            );
 
             let status_id = null;
             const [statusRows] = await sequelize.query(
@@ -90,7 +115,10 @@ export const createSolicitud = async (req, res) => {
             );
             if (statusRows.length) status_id = statusRows[0].id;
             else {
-                const [firstStatus] = await sequelize.query(`SELECT id FROM status LIMIT 1`, { transaction: t });
+                const [firstStatus] = await sequelize.query(
+                    `SELECT id FROM status LIMIT 1`,
+                    { transaction: t }
+                );
                 if (firstStatus.length) status_id = firstStatus[0].id;
             }
 
@@ -107,9 +135,9 @@ export const createSolicitud = async (req, res) => {
                         origin_sp: origin_study_plan_id,
                         dest_sp: destination_study_plan_id,
                         status_id,
-                        observations: observaciones || null
+                        observations: observaciones || null,
                     },
-                    transaction: t
+                    transaction: t,
                 }
             );
 
@@ -128,9 +156,9 @@ export const createSolicitud = async (req, res) => {
                         originGrade: null,
                         originCredits: originCourse.credits || 3,
                         destCredits: destCourse.credits || 3,
-                        statusId: status_id
+                        statusId: status_id,
                     },
-                    transaction: t
+                    transaction: t,
                 }
             );
 
@@ -144,19 +172,26 @@ export const createSolicitud = async (req, res) => {
                     origin_study_plan_id,
                     destination_study_plan_id,
                     origin_course_id: originCourse.id,
-                    destination_course_id: destCourse.id
-                }
+                    destination_course_id: destCourse.id,
+                },
             });
         } catch (innerError) {
             await t.rollback();
-            console.error("Error in createSolicitud (transaction):", innerError);
-            return res.status(500).json({ error: "Error al crear la solicitud de equivalencia" });
+            console.error(
+                "Error in createSolicitud (transaction):",
+                innerError
+            );
+            return res
+                .status(500)
+                .json({ error: "Error al crear la solicitud de equivalencia" });
         }
     } catch (error) {
         console.error("Error in createSolicitud:", error);
-        return res.status(500).json({ error: "Error al procesar la solicitud" });
+        return res
+            .status(500)
+            .json({ error: "Error al procesar la solicitud" });
     }
-}
+};
 
 export const getOneSolicitud = async (req, res) => {
     try {
@@ -177,7 +212,7 @@ export const getOneSolicitud = async (req, res) => {
         console.error("Error in getOneSolicitud:", error);
         return res.status(500).json({ error: "Error al obtener la solicitud" });
     }
-}
+};
 
 export const getDocumentosSolicitud = async (req, res) => {
     try {
@@ -192,6 +227,131 @@ export const getDocumentosSolicitud = async (req, res) => {
         return res.json(documents || []);
     } catch (error) {
         console.error("Error in getDocumentosSolicitud:", error);
-        return res.status(500).json({ error: "Error al obtener documentos de la solicitud" });
+        return res
+            .status(500)
+            .json({ error: "Error al obtener documentos de la solicitud" });
     }
-}
+};
+
+export const updateEstadoSolicitud = async (req, res) => {
+    const { id } = req.params;
+    const { status_name, change_reason } = req.body;
+    const userId = "eb9d1960-d572-4e9e-a7df-d64a756a7bbe";
+
+    if (!status_name) {
+        return res
+            .status(400)
+            .json({ error: "El nombre del estado es obligatorio." });
+    }
+
+    const t = await sequelize.transaction();
+
+    try {
+        // Obtener el ID del nuevo estado
+        const [statusRows] = await sequelize.query(
+            `SELECT id FROM status WHERE name ILIKE :status_name LIMIT 1`,
+            { replacements: { status_name }, transaction: t }
+        );
+
+        if (!statusRows.length) {
+            await t.rollback();
+            return res
+                .status(404)
+                .json({ error: "El estado proporcionado no es válido." });
+        }
+        const newStatusId = statusRows[0].id;
+
+        // Obtener datos actuales de la solicitud para el historial y notificación
+        const [currentReq] = await sequelize.query(
+            `SELECT status_id, student_id FROM equivalence_requests WHERE id = :id LIMIT 1`,
+            { replacements: { id }, transaction: t }
+        );
+
+        if (!currentReq.length) {
+            await t.rollback();
+            return res
+                .status(404)
+                .json({ error: "No se encontró la solicitud." });
+        }
+        const { status_id: oldStatusId, student_id: studentProfileId } =
+            currentReq[0];
+
+        // Actualizar la solicitud (HU-41)
+        await sequelize.query(
+            `UPDATE equivalence_requests 
+             SET status_id = :newStatusId, 
+                 decision_date = CURRENT_TIMESTAMP, 
+                 decided_by = :userId, 
+                 rejection_reason = :reason,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id`,
+            {
+                replacements: {
+                    newStatusId,
+                    userId,
+                    reason: change_reason || null,
+                    id,
+                },
+                transaction: t,
+            }
+        );
+
+        // Registrar en historial de auditoría (Exigencia del SLA)
+        await sequelize.query(
+            `INSERT INTO equivalence_request_status_history 
+                (id, equivalence_request_id, from_status, to_status, changed_by, change_reason)
+             VALUES 
+                (:histId, :id, :oldStatusId, :newStatusId, :userId, :reason)`,
+            {
+                replacements: {
+                    histId: uuidv4(),
+                    id,
+                    oldStatusId,
+                    newStatusId,
+                    userId,
+                    reason: change_reason || "Cambio de estado administrativo",
+                },
+                transaction: t,
+            }
+        );
+
+        // Crear la notificación en DB (HU-29)
+        // Obtenemos el user_id del estudiante
+        const [studentUser] = await sequelize.query(
+            `SELECT user_id FROM student_profiles WHERE id = :studentProfileId LIMIT 1`,
+            { replacements: { studentProfileId }, transaction: t }
+        );
+
+        if (studentUser.length) {
+            await sequelize.query(
+                `INSERT INTO notifications 
+                    (id, recipient_user_id, equivalence_request_id, notification_type, title, message, email_status)
+                 VALUES 
+                    (:notifId, :userId, :reqId, :type, :title, :msg, 'PENDING')`,
+                {
+                    replacements: {
+                        notifId: uuidv4(),
+                        userId: studentUser[0].user_id,
+                        reqId: id,
+                        type: "STATUS_UPDATE",
+                        title: "Actualización de tu solicitud",
+                        msg: `Tu solicitud de equivalencia ha cambiado al estado: ${status_name}.`,
+                    },
+                    transaction: t,
+                }
+            );
+        }
+
+        await t.commit();
+        return res.status(200).json({
+            message: "Estado actualizado exitosamente y notificación encolada.",
+            new_status: status_name,
+        });
+    } catch (error) {
+        await t.rollback();
+        console.error("Error en updateEstadoSolicitud:", error);
+        return res
+            .status(500)
+            .json({ error: "Error interno al actualizar el estado." });
+    }
+};
