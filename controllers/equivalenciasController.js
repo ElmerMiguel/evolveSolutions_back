@@ -1,5 +1,6 @@
 import sequelize from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
+import emailService from "../services/emailService.js";
 
 export const getAllSolicitudes = async (req, res) => {
     try {
@@ -17,6 +18,7 @@ export const createSolicitud = async (req, res) => {
     try {
         const {
             nombre,
+            correo,
             carnet,
             carrera,
             cursoAprobado,
@@ -27,15 +29,26 @@ export const createSolicitud = async (req, res) => {
             docente,
         } = req.body;
 
-        if (!carnet || !codigoCursoAprobado || !codigoCursoEquivalencia) {
+        if (
+            !carnet ||
+            !codigoCursoAprobado ||
+            !codigoCursoEquivalencia ||
+            !correo
+        ) {
             return res.status(400).json({
-                error: "carnet, codigoCursoAprobado y codigoCursoEquivalencia son obligatorios",
+                error: "carnet, correo, codigoCursoAprobado y codigoCursoEquivalencia son obligatorios",
             });
         }
 
         const t = await sequelize.transaction();
 
         try {
+            const [userRows] = await sequelize.query(
+                `SELECT id FROM users WHERE email = :correo LIMIT 1`,
+                { replacements: { correo }, transaction: t }
+            );
+            const creatorId = userRows.length ? userRows[0].id : null;
+
             const [teacherRows] = await sequelize.query(
                 `SELECT tp.id 
                  FROM teacher_profiles tp
@@ -139,9 +152,9 @@ export const createSolicitud = async (req, res) => {
             const newRequestId = uuidv4();
             await sequelize.query(
                 `INSERT INTO equivalence_requests
-                    (id, student_id, origin_study_plan_id, destination_study_plan_id, status_id, observations, assigned_teacher_id)
+                    (id, student_id, origin_study_plan_id, destination_study_plan_id, status_id, observations, assigned_teacher_id, created_by)
                  VALUES
-                    (:id, :student_id, :origin_sp, :dest_sp, :status_id, :observations, :teacher_id)`,
+                    (:id, :student_id, :origin_sp, :dest_sp, :status_id, :observations, :teacher_id, :creatorId)`,
                 {
                     replacements: {
                         id: newRequestId,
@@ -151,6 +164,7 @@ export const createSolicitud = async (req, res) => {
                         status_id,
                         observations: observaciones || null,
                         teacher_id: assignedTeacherId,
+                        creatorId: creatorId,
                     },
                     transaction: t,
                 }
@@ -178,6 +192,41 @@ export const createSolicitud = async (req, res) => {
             );
 
             await t.commit();
+
+            try {
+                await emailService.sendEmail(
+                    correo,
+                    "Solicitud de Equivalencia Recibida",
+                    `<div style="font-family: sans-serif; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; max-width: 600px;">
+                        <div style="background-color: #1a73e8; color: white; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0;">¡Solicitud Recibida!</h2>
+                        </div>
+                        <div style="padding: 20px; color: #3c4043; line-height: 1.5;">
+                            <p>Hola <strong>${
+                                nombre || "Estudiante"
+                            }</strong>,</p>
+                            <p>Tu solicitud para el curso <b>${cursoEquivalencia}</b> ha sido recibida exitosamente en el sistema.</p>
+                            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #1a73e8;">
+                                <p style="margin: 5px 0;"><strong>Carnet:</strong> ${carnet}</p>
+                                <p style="margin: 5px 0;"><strong>Carrera:</strong> ${carrera}</p>
+                                <p style="margin: 5px 0;"><strong>Docente Evaluador:</strong> ${
+                                    docente || "Pendiente"
+                                }</p>
+                            </div>
+                            <p>Pronto recibirás noticias por este medio sobre el estado de tu trámite.</p>
+                        </div>
+                        <div style="background-color: #f1f3f4; padding: 15px; text-align: center; font-size: 12px; color: #70757a;">
+                            Este es un correo automático, por favor no respondas a este mensaje.
+                        </div>
+                    </div>`
+                );
+                console.log(`Correo enviado con éxito a: ${correo}`);
+            } catch (mailError) {
+                console.error(
+                    "Error en el proceso de notificación:",
+                    mailError
+                );
+            }
 
             return res.status(201).json({
                 message: "Solicitud de equivalencia creada",
@@ -263,7 +312,6 @@ export const updateEstadoSolicitud = async (req, res) => {
     const t = await sequelize.transaction();
 
     try {
-        // Obtener el ID del nuevo estado
         const [statusRows] = await sequelize.query(
             `SELECT id FROM status WHERE name ILIKE :status_name LIMIT 1`,
             { replacements: { status_name }, transaction: t }
@@ -277,9 +325,8 @@ export const updateEstadoSolicitud = async (req, res) => {
         }
         const newStatusId = statusRows[0].id;
 
-        // Obtener datos actuales de la solicitud para el historial y notificación
         const [currentReq] = await sequelize.query(
-            `SELECT status_id, student_id FROM equivalence_requests WHERE id = :id LIMIT 1`,
+            `SELECT status_id, student_id, created_by FROM equivalence_requests WHERE id = :id LIMIT 1`,
             { replacements: { id }, transaction: t }
         );
 
@@ -289,10 +336,12 @@ export const updateEstadoSolicitud = async (req, res) => {
                 .status(404)
                 .json({ error: "No se encontró la solicitud." });
         }
-        const { status_id: oldStatusId, student_id: studentProfileId } =
-            currentReq[0];
+        const {
+            status_id: oldStatusId,
+            student_id: studentProfileId,
+            created_by: creatorId,
+        } = currentReq[0];
 
-        // Actualizar la solicitud (HU-41)
         await sequelize.query(
             `UPDATE equivalence_requests 
              SET status_id = :newStatusId, 
@@ -312,7 +361,6 @@ export const updateEstadoSolicitud = async (req, res) => {
             }
         );
 
-        // Registrar en historial de auditoría (Exigencia del SLA)
         await sequelize.query(
             `INSERT INTO equivalence_request_status_history 
                 (id, equivalence_request_id, from_status, to_status, changed_by, change_reason)
@@ -331,8 +379,6 @@ export const updateEstadoSolicitud = async (req, res) => {
             }
         );
 
-        // Crear la notificación en DB (HU-29)
-        // Obtenemos el user_id del estudiante
         const [studentUser] = await sequelize.query(
             `SELECT user_id FROM student_profiles WHERE id = :studentProfileId LIMIT 1`,
             { replacements: { studentProfileId }, transaction: t }
@@ -359,12 +405,55 @@ export const updateEstadoSolicitud = async (req, res) => {
         }
 
         await t.commit();
+
+        try {
+            const [userRow] = await sequelize.query(
+                `SELECT email, first_name FROM users WHERE id = :creatorId LIMIT 1`,
+                { replacements: { creatorId } }
+            );
+
+            if (userRow.length) {
+                const { email, first_name } = userRow[0];
+                await emailService.sendEmail(
+                    email,
+                    "Actualización de Solicitud - Sistema de Equivalencias",
+                    `<div style="font-family: sans-serif; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; max-width: 600px;">
+                        <div style="background-color: #34a853; color: white; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0;">Actualización de Estado</h2>
+                        </div>
+                        <div style="padding: 20px; color: #3c4043; line-height: 1.5;">
+                            <p>Hola <strong>${
+                                first_name || "Estudiante"
+                            }</strong>,</p>
+                            <p>Te informamos que tu solicitud de equivalencia ha sido actualizada.</p>
+                            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #34a853;">
+                                <p style="margin: 5px 0;"><strong>Nuevo Estado:</strong> <span style="color: #1a73e8; font-weight: bold;">${status_name}</span></p>
+                                <p style="margin: 5px 0;"><strong>Fecha de Decisión:</strong> ${new Date().toLocaleDateString()}</p>
+                                ${
+                                    change_reason
+                                        ? `<p style="margin: 10px 0 5px 0;"><strong>Observaciones del Docente:</strong></p><p style="margin: 0; font-style: italic; color: #5f6368;">"${change_reason}"</p>`
+                                        : ""
+                                }
+                            </div>
+                            <p>Puedes revisar los detalles completos ingresando a tu cuenta en el portal de equivalencias.</p>
+                        </div>
+                        <div style="background-color: #f1f3f4; padding: 15px; text-align: center; font-size: 12px; color: #70757a;">
+                            Este es un correo automático del sistema CUNOC, por favor no respondas.
+                        </div>
+                    </div>`
+                );
+                console.log(`Correo de actualización enviado a: ${email}`);
+            }
+        } catch (error) {
+            console.error("Error enviando actualización:", error);
+        }
+
         return res.status(200).json({
-            message: "Estado actualizado exitosamente y notificación encolada.",
+            message: "Estado actualizado exitosamente y notificación enviada.",
             new_status: status_name,
         });
     } catch (error) {
-        await t.rollback();
+        if (t) await t.rollback();
         console.error("Error en updateEstadoSolicitud:", error);
         return res
             .status(500)
