@@ -58,7 +58,7 @@ describe("equivalenciasController.js", () => {
       req = {
         body: {
           nombre: "Estudiante Prueba",
-          correo: "test@correo.com",
+          //correo: "test@correo.com", <- simular error de email no adjunto
           carnet: "20201010",
           carrera: "Ingeniería",
           codigoCursoAprobado: "001",
