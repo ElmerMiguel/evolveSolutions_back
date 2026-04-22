@@ -25,7 +25,6 @@ describe("coursesController.js", () => {
 
   it("retorna lista de cursos", async () => {
     const fakeCourses = [{ id: 1, name: "Curso Test" }];
-    // IMPORTANTE: Devolver [data, metadata]
     sequelize.query.mockResolvedValueOnce([fakeCourses, {}]);
 
     await getCourses({}, res);
@@ -45,7 +44,6 @@ describe("coursesController.js", () => {
 
   it("retorna 500 si ocurre otro error en createCourse", async () => {
     req = { body: { codigo: "ERROR", nombre: "Test", creditos: 3 } };
-    // Error genérico sin .original.code
     sequelize.query.mockRejectedValueOnce(new Error("Generic DB error"));
 
     await createCourse(req, res);
@@ -54,7 +52,6 @@ describe("coursesController.js", () => {
 
   it("retorna lista de pensums", async () => {
     const fakeOptions = [{ value: "p1", nombre: "Ingeniería" }];
-    // IMPORTANTE: Devolver [data, metadata]
     sequelize.query.mockResolvedValueOnce([fakeOptions, {}]);
 
     await getCourseOptions({}, res);

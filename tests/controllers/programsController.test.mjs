@@ -3,7 +3,6 @@ import { getTeacherCourses, uploadProgram } from "../../controllers/programsCont
 import sequelize from "../../config/db.js";
 import cloudinary from "../../config/cloudinary.js";
 
-// Mock de Sequelize
 vi.mock("../../config/db.js", () => ({
   default: {
     query: vi.fn(),
@@ -15,7 +14,6 @@ vi.mock("../../config/db.js", () => ({
   }
 }));
 
-// Mock de Cloudinary
 vi.mock("../../config/cloudinary.js", () => ({
   default: {
     uploader: {
@@ -35,7 +33,7 @@ describe("programsController.js", () => {
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     };
-    // Simulamos usuario autenticado
+    // simular usuario autenticado
     req = { user: { id: "user-123" } };
   });
 
@@ -85,9 +83,7 @@ describe("programsController.js", () => {
 
       const fakeProgram = { id: "prog-1", document_url: "http://res.com/pdf" };
       
-      // Sequelize devuelve [[registros], metadata]
-      // Tu controlador hace const [program] = await sequelize.query(...)
-      // Por tanto, 'program' es el array de registros.
+
       sequelize.query.mockResolvedValueOnce([[fakeProgram], {}]);
 
       await uploadProgram(req, res);
@@ -95,7 +91,6 @@ describe("programsController.js", () => {
       expect(cloudinary.uploader.upload_stream).toHaveBeenCalled();
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         message: "Programa subido y guardado correctamente",
-        // Aquí estaba el detalle: 'data' contiene el ARRAY retornado por RETURNING *
         data: [expect.objectContaining(fakeProgram)]
       }));
     });
@@ -104,7 +99,6 @@ describe("programsController.js", () => {
       req.file = { mimetype: "application/pdf", buffer: Buffer.from("...") };
       req.body = { teacher_course_id: "tc-1" };
 
-      // Forzamos error en Cloudinary
       cloudinary.uploader.upload_stream.mockImplementationOnce((opts, cb) => ({
         end: vi.fn(() => cb(new Error("Cloudinary fail"), null))
       }));
