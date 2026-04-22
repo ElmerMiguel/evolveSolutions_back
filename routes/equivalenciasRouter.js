@@ -22,6 +22,6 @@ router.post(
     upload.single("file"),
     uploadDocumentoSolicitud
 );
-router.patch("/:id/status", updateEstadoSolicitud);
+router.patch("/:id/status", autenticacionToken, updateEstadoSolicitud);
 
 export default router;

@@ -471,7 +471,13 @@ export const uploadDocumentoSolicitud = async (req, res) => {
 export const updateEstadoSolicitud = async (req, res) => {
     const { id } = req.params;
     const { status_name, change_reason } = req.body;
-    const userId = "eb9d1960-d572-4e9e-a7df-d64a756a7bbe";
+    const userId = req.user?.id;
+
+    if (!userId) {
+        return res
+            .status(401)
+            .json({ error: "Usuario no autenticado para actualizar el estado." });
+    }
 
     if (!status_name) {
         return res
