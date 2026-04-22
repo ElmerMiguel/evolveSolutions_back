@@ -7,6 +7,7 @@ import sequelize from "../config/db.js";
 
 // ... existing imports
 import { blacklistToken } from "../middlewares/autenticacionToken.js";
+import {QueryTypes} from "sequelize";
 
 // Cambiamos el export por default a exports nombrados
 export const login = async (req, res) => {
@@ -27,9 +28,9 @@ export const login = async (req, res) => {
         const token = generarAuthToken(usuario);
 
         // OBTENER LOS PERMISOS DEL USUARIO
-        const [userPermissions] = await sequelize.query(
-            `
-            SELECT p.id, p.code, p.name, p.resource, p.action 
+        const userPermissions = await sequelize.query(
+            `    
+            SELECT p.code, p.name, p.resource, rp.auth_level
             FROM user_roles ur
             JOIN roles r ON ur.role_id = r.id
             JOIN role_permissions rp ON r.id = rp.role_id
@@ -38,35 +39,14 @@ export const login = async (req, res) => {
         `,
             {
                 replacements: { userId: usuario.id },
+                type: QueryTypes.SELECT
             }
         );
 
-        let nivelCursos = 3; // DENEGADO original, FORZADO A 3 PARA DEMO/EVALUACIÓN
-
-        userPermissions.forEach((perm) => {
-            if (
-                perm.resource === "courses" ||
-                perm.resource === "cursos" ||
-                perm.code.includes("COURSE")
-            ) {
-                if (
-                    perm.action === "MANAGE" ||
-                    perm.action === "CREATE" ||
-                    perm.action === "DELETE" ||
-                    perm.code.includes("MANAGE") ||
-                    perm.code.includes("UPLOAD")
-                ) {
-                    nivelCursos = Math.max(nivelCursos, 3); // ESCRITURA
-                } else if (perm.action === "UPDATE") {
-                    nivelCursos = Math.max(nivelCursos, 2); // ACTUALIZACION
-                } else if (
-                    perm.action === "VIEW" ||
-                    perm.code.includes("VIEW")
-                ) {
-                    nivelCursos = Math.max(nivelCursos, 1); // LECTURA
-                }
-            }
-        });
+        const permisos = userPermissions.map(p => ({
+            PermisoID: p.name,
+            NivelEscritura: p.auth_level,
+        }));
 
         // Si el usuario es ADMIN, darle acceso total para pruebas
         const [userRoles] = await sequelize.query(
@@ -75,17 +55,6 @@ export const login = async (req, res) => {
                 replacements: { userId: usuario.id },
             }
         );
-        const isAdmin = userRoles.some((r) => r.code === "ADMIN");
-        if (isAdmin) {
-            nivelCursos = 3;
-        }
-
-        const permisos = [
-            {
-                PermisoID: "cursos",
-                NivelEscritura: nivelCursos,
-            },
-        ];
 
         let sessionObj = null;
         const activeSession = await sessions.checkActive(usuario?.id);
