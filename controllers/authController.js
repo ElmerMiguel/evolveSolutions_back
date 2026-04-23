@@ -126,7 +126,7 @@ export const registrar = async (req, res) => {
         }
 
         // Crear student_profile si es necesario (simplificado)
-
+        console.log("start")
         await t.commit();
         res.status(201).json({ message: "Usuario registrado con éxito" });
     } catch (error) {
