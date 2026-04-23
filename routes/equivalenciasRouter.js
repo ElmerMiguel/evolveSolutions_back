@@ -4,8 +4,11 @@ import {
     getAllSolicitudes,
     getDocumentosSolicitud,
     getOneSolicitud,
+    uploadDocumentoSolicitud,
     updateEstadoSolicitud,
 } from "../controllers/equivalenciasController.js";
+import upload from "../middlewares/fileUploadMiddleware.js";
+import autenticacionToken from "../middlewares/autenticacionToken.js";
 
 const router = Router();
 
@@ -13,6 +16,12 @@ router.get("/", getAllSolicitudes);
 router.get("/documentos/:id", getDocumentosSolicitud);
 router.get("/:id", getOneSolicitud);
 router.post("/", createSolicitud);
-router.patch("/:id/status", updateEstadoSolicitud);
+router.post(
+    "/:id/documentos",
+    autenticacionToken,
+    upload.single("file"),
+    uploadDocumentoSolicitud
+);
+router.patch("/:id/status", autenticacionToken, updateEstadoSolicitud);
 
 export default router;

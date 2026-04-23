@@ -1,6 +1,7 @@
 import sequelize from "../config/db.js";
 import { v4 as uuidv4 } from "uuid";
 import emailService from "../services/emailService.js";
+import cloudinary from "../config/cloudinary.js";
 
 export const getAllSolicitudes = async (req, res) => {
     try {
@@ -336,10 +337,147 @@ export const getDocumentosSolicitud = async (req, res) => {
     }
 };
 
+export const uploadDocumentoSolicitud = async (req, res) => {
+    const { id } = req.params;
+    const { documentType } = req.body;
+    const file = req.file;
+    const uploadedBy = req.user?.id;
+
+    if (!id) {
+        return res.status(400).json({ error: "ID es requerido" });
+    }
+
+    if (!uploadedBy) {
+        return res
+            .status(401)
+            .json({ error: "Usuario no autenticado para subir documentos" });
+    }
+
+    if (!documentType) {
+        return res
+            .status(400)
+            .json({ error: "El tipo de documento es obligatorio" });
+    }
+
+    if (!file) {
+        return res.status(400).json({ error: "No se recibió ningún archivo" });
+    }
+
+    if (file.mimetype !== "application/pdf") {
+        return res
+            .status(400)
+            .json({ error: "Solo archivos PDF son permitidos" });
+    }
+
+    const transaction = await sequelize.transaction();
+
+    try {
+        const [requestRows] = await sequelize.query(
+            `SELECT id FROM equivalence_requests WHERE id = :id LIMIT 1`,
+            { replacements: { id }, transaction }
+        );
+
+        if (!requestRows.length) {
+            await transaction.rollback();
+            return res.status(404).json({ error: "Solicitud no encontrada" });
+        }
+
+        const uploadResult = await new Promise((resolve, reject) => {
+            cloudinary.uploader
+                .upload_stream(
+                    {
+                        resource_type: "raw",
+                        folder: "equivalence_documents",
+                    },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                )
+                .end(file.buffer);
+        });
+
+        const documentId = uuidv4();
+        const [documentRows] = await sequelize.query(
+            `
+                INSERT INTO documents (
+                    id,
+                    equivalence_request_id,
+                    document_type,
+                    document_name,
+                    document_url,
+                    document_key,
+                    file_size,
+                    mime_type,
+                    uploaded_by,
+                    upload_date,
+                    validation_status
+                )
+                VALUES (
+                    :id,
+                    :equivalenceRequestId,
+                    :documentType,
+                    :documentName,
+                    :documentUrl,
+                    :documentKey,
+                    :fileSize,
+                    :mimeType,
+                    :uploadedBy,
+                    CURRENT_TIMESTAMP,
+                    'PENDING'
+                )
+                RETURNING
+                    id,
+                    document_type AS "documentType",
+                    document_name AS "documentName",
+                    document_url AS "documentUrl",
+                    document_key AS "documentKey",
+                    file_size AS "fileSize",
+                    mime_type AS "mimeType",
+                    upload_date AS "uploadDate",
+                    validation_status AS "validationStatus"
+            `,
+            {
+                replacements: {
+                    id: documentId,
+                    equivalenceRequestId: id,
+                    documentType,
+                    documentName: file.originalname,
+                    documentUrl: uploadResult.secure_url,
+                    documentKey: uploadResult.public_id,
+                    fileSize: file.size,
+                    mimeType: file.mimetype,
+                    uploadedBy,
+                },
+                transaction,
+            }
+        );
+
+        await transaction.commit();
+
+        return res.status(201).json({
+            message: "Documento subido correctamente",
+            data: documentRows[0],
+        });
+    } catch (error) {
+        await transaction.rollback();
+        console.error("Error in uploadDocumentoSolicitud:", error);
+        return res
+            .status(500)
+            .json({ error: "Error al subir el documento de la solicitud" });
+    }
+};
+
 export const updateEstadoSolicitud = async (req, res) => {
     const { id } = req.params;
     const { status_name, change_reason } = req.body;
-    const userId = "eb9d1960-d572-4e9e-a7df-d64a756a7bbe";
+    const userId = req.user?.id;
+
+    if (!userId) {
+        return res
+            .status(401)
+            .json({ error: "Usuario no autenticado para actualizar el estado." });
+    }
 
     if (!status_name) {
         return res
