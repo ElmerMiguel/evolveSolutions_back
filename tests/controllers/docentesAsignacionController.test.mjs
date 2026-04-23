@@ -47,7 +47,7 @@ describe("docentesAsignacionController.js", () => {
 
   describe("createCursosDocenteAsignacion", () => {
     it("debería retornar 400 si faltan campos", async () => {
-      req = { body: { nombreDocente: "Juan" } }; // Faltan los demás
+      req = { body: { nombreDocente: "Juan" } }; 
       await createCursosDocenteAsignacion(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
     });
@@ -59,7 +59,6 @@ describe("docentesAsignacionController.js", () => {
           nombreCurso: "N1", carrera: "Ing", semestre: "1" 
         } 
       };
-      // Mock para buscar docente (retorna vacío)
       sequelize.query.mockResolvedValueOnce([[], {}]);
 
       await createCursosDocenteAsignacion(req, res);
@@ -126,7 +125,7 @@ describe("docentesAsignacionController.js", () => {
 
     it("debería retornar 409 si hay estudiantes inscritos", async () => {
       req = { params: { id: "123" } };
-      // Simular que tiene 5 estudiantes
+      // simular 5 estuduantes
       sequelize.query.mockResolvedValueOnce([[{ id: "123", enrolled_students: 5 }], {}]);
 
       await deleteCursosDocenteAsignacion(req, res);
@@ -138,8 +137,8 @@ describe("docentesAsignacionController.js", () => {
     it("debería eliminar exitosamente si no hay inscritos", async () => {
       req = { params: { id: "123" } };
       sequelize.query
-        .mockResolvedValueOnce([[{ id: "123", enrolled_students: 0 }], {}]) // Verificar
-        .mockResolvedValueOnce([[], {}]); // Delete
+        .mockResolvedValueOnce([[{ id: "123", enrolled_students: 0 }], {}])
+        .mockResolvedValueOnce([[], {}]); 
 
       await deleteCursosDocenteAsignacion(req, res);
 

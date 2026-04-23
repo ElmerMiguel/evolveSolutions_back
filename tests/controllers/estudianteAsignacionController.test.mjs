@@ -6,7 +6,6 @@ import {
 } from "../../controllers/estudianteAsignacionController.js";
 import sequelize from "../../config/db.js";
 
-// Mock de Sequelize
 vi.mock("../../config/db.js", () => ({
   default: {
     query: vi.fn(),
@@ -54,7 +53,7 @@ describe("estudianteAsignacionController.js", () => {
 
     it("debería retornar 404 si el estudiante no existe", async () => {
       req = { body: { carnet: "999", codigoCurso: "CS101" } };
-      sequelize.query.mockResolvedValueOnce([[], {}]); // Mock de búsqueda de estudiante vacío
+      sequelize.query.mockResolvedValueOnce([[], {}]); 
 
       await createCursosAsignacion(req, res);
 
@@ -98,8 +97,8 @@ describe("estudianteAsignacionController.js", () => {
       req = { params: { id: "uuid-asignacion" } };
       
       sequelize.query
-        .mockResolvedValueOnce([[{ id: "uuid-asignacion" }], {}]) // Encuentra registro
-        .mockResolvedValueOnce([[], {}]);                        // Ejecuta delete
+        .mockResolvedValueOnce([[{ id: "uuid-asignacion" }], {}]) 
+        .mockResolvedValueOnce([[], {}]);                       
 
       await deleteCursosAsignacion(req, res);
 

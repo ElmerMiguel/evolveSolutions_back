@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getCourses, createCourse, getCourseOptions } from "../../controllers/coursesController.js";
 import sequelize from "../../config/db.js";
 
-// Mock completo de Sequelize
 vi.mock("../../config/db.js", () => ({
   default: {
     query: vi.fn(),
@@ -27,7 +26,6 @@ describe("coursesController.js", () => {
   describe("getCourses", () => {
     it("debería retornar una lista de cursos exitosamente", async () => {
       const fakeCourses = [{ id: "1", name: "Matemáticas", enabled: true }];
-      // Sequelize.query devuelve [data, metadata], por eso el array doble
       sequelize.query.mockResolvedValueOnce([fakeCourses, {}]);
 
       await getCourses({}, res);
